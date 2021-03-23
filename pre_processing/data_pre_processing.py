@@ -3,7 +3,7 @@ import glob
 import pandas as pd
 
 
-absolute_path_to_data = "C:\\Users\\Sara\\Desktop\\master\\atp_matches_prediction\\data"
+absolute_path_to_data = "C:\\Users\\Sara\\PycharmProjects\\tennis_atp"
 
 
 class DataProcessing:
@@ -14,7 +14,6 @@ class DataProcessing:
     def readATPMatches(self):
         """Reads ATP matches"""
         allFiles = glob.glob(self.dirname + "/atp_matches_" + "????.csv")
-        #matches = pd.DataFrame()
         container = list()
         for file in allFiles:
             df = pd.read_csv(file,
@@ -27,7 +26,6 @@ class DataProcessing:
     def readFMatches(self):
         """Reads ITF future matches"""
         allFiles = glob.glob(self.dirname + "/atp_matches_futures_" + "????.csv")
-        #atches = pd.DataFrame()
         container = list()
         for file in allFiles:
             df = pd.read_csv(file,
@@ -40,7 +38,6 @@ class DataProcessing:
     def readChall_QATPMatches(self):
         """reads Challenger level + ATP Q matches"""
         allFiles = glob.glob(self.dirname + "/atp_matches_qual_chall_" + "????.csv")
-        #matches = pd.DataFrame()
         container = list()
         for file in allFiles:
             df = pd.read_csv(file,
@@ -71,7 +68,7 @@ class DataProcessing:
     def getSurfaceDict(self):
         """Get surfaces"""
         surfaces = self.matches.groupby(['surface']).size().reset_index(
-            name="surface_count").sort_values(by='surface_count', ascending=False)
+            name="surface_count").sort_values(by='surface_count', ascending=True)
         surfaces_dict = dict(surfaces.values)
         print("Surfaces: ")
         print(surfaces_dict)
@@ -86,7 +83,7 @@ class DataProcessing:
     def getDrawSizeDict(self):
         """Get draw_size"""
         draw_sizes = self.matches.groupby(['draw_size']).size().reset_index(
-            name="draw_size_count").sort_values(by='draw_size', ascending=False)
+            name="draw_size_count").sort_values(by='draw_size', ascending=True)
         draw_size_dict = dict(draw_sizes.values)
         print("Draw_size: ")
         print(draw_size_dict)
@@ -147,7 +144,7 @@ class DataProcessing:
         loser_entries.columns = ['players_entry']
         players_entries = winner_entries.append(loser_entries)
         players_entries = players_entries.groupby(['players_entry']).size().reset_index(
-            name="players_entry_count").sort_values(by='players_entry_count', ascending=False)
+            name="players_entry_count").sort_values(by='players_entry_count', ascending=True)
         players_entry_dict = dict(players_entries.values)
         print("Players_entry:")
         print(players_entry_dict)
@@ -159,6 +156,8 @@ class DataProcessing:
         print("Sanity checking winner_hand and loser_hand: " + str(numOfNan))
         self.matches.dropna(subset=['winner_hand'], inplace=True)
         self.matches.dropna(subset=['loser_hand'], inplace=True)
+        self.matches = self.matches[self.matches.winner_hand.isin({'R', 'L'})]
+        self.matches = self.matches[self.matches.loser_hand.isin({'R', 'L'})]
         self.matches['winner_hand'].apply(lambda x: x.upper())
         self.matches['loser_hand'].apply(lambda x: x.upper())
         self.matches['winner_hand'] = np.where(self.matches['winner_hand'] == 'L', 1, self.matches['winner_hand'])
@@ -171,8 +170,8 @@ class DataProcessing:
         numOfNan = self.matches[self.matches['winner_ht'].isnull() | self.matches['loser_ht'].isnull()].shape[0]
         print("Sanity checking winner_ht and loser_ht: " + str(numOfNan))
         """Fill NaN players height with -1"""
-        self.matches['winner_ht'] = self.matches['winner_ht'].fillna(-1)
-        self.matches['loser_ht'] = self.matches['loser_ht'].fillna(-1)
+        self.matches['winner_ht'] = self.matches['winner_ht'].fillna(0)
+        self.matches['loser_ht'] = self.matches['loser_ht'].fillna(0)
 
     def checkPlayerAge(self):
         """Sanity checking winner_age and loser_age"""
@@ -295,7 +294,7 @@ class DataProcessing:
         self.checkPlayerRankPoints()
         self.checkScore()
         self.checkBestOf()
-        self.checkMinutes()
+        # self.checkMinutes()
         self.checkMatchStatistic()
         print("Number of matches after cleaning: " + str(self.matches.shape[0]))
 
