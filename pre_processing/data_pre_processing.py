@@ -1,19 +1,38 @@
 import numpy as np
 import glob
 import pandas as pd
-
+from datetime import datetime
+import re
+from os.path import isfile
 
 absolute_path_to_data = "C:\\Users\\Sara\\PycharmProjects\\tennis_atp"
 
 
+def getSurfaceForTournament(surface, tourney, tournament_dict):
+    if surface is np.NAN:
+        return tournament_dict[tourney]
+    else:
+        return surface
+
+
 class DataProcessing:
-    def __init__(self, dirname):
+    def __init__(self, dirname, yearFrom=2000, yearTo=2021, onlyGrandSlams=False, tourneyName="", includeChallengers=False):
         self.dirname = dirname
+        self.yearFrom = yearFrom
+        self.yearTo = yearTo
+        self.onlyGrandSlams = onlyGrandSlams
+        self.tourneyName = tourneyName
+        self.includeChallengers = includeChallengers
         self.matches = self.getAllMatches()
 
     def readATPMatches(self):
         """Reads ATP matches"""
-        allFiles = glob.glob(self.dirname + "/atp_matches_" + "????.csv")
+        # Generate a list of expected file names
+        expected_files = [self.dirname + "/atp_matches_" + "{}.csv".format(i) for i in
+                          range(self.yearFrom, self.yearTo)]
+
+        # Filter the list to just the files that actually exist.
+        allFiles = [f for f in expected_files if isfile(f)]
         container = list()
         for file in allFiles:
             df = pd.read_csv(file,
@@ -37,7 +56,11 @@ class DataProcessing:
 
     def readChall_QATPMatches(self):
         """reads Challenger level + ATP Q matches"""
-        allFiles = glob.glob(self.dirname + "/atp_matches_qual_chall_" + "????.csv")
+        # Generate a list of expected file names
+        expected_files = [self.dirname + "/atp_matches_qual_chall_" + "{}.csv".format(i) for i in range(self.yearFrom, self.yearTo)]
+
+        # Filter the list to just the files that actually exist.
+        allFiles = [f for f in expected_files if isfile(f)]
         container = list()
         for file in allFiles:
             df = pd.read_csv(file,
@@ -56,6 +79,8 @@ class DataProcessing:
     def checkTourneyName(self):
         """Sanity checking tourney_name"""
         numOfNan = self.matches[self.matches['tourney_name'].isnull()].shape[0]
+        if self.tourneyName != "":
+            self.matches = self.matches[self.matches["tourney_name"] == self.tourneyName]
         print("Sanity checking tourney_name: " + str(numOfNan))
         self.matches.dropna(subset=['tourney_name'], inplace=True)
 
@@ -63,6 +88,15 @@ class DataProcessing:
         """Sanity checking surface"""
         numOfNan = self.matches[self.matches['surface'].isnull()].shape[0]
         print("Sanity checking surface: " + str(numOfNan))
+        tournamentToSurface_df = self.matches[['tourney_name', 'surface']]
+        tournamentToSurface_df = tournamentToSurface_df[pd.notnull(tournamentToSurface_df['surface'])]
+        tournamentToSurface_df.drop_duplicates(subset="tourney_name", inplace=True)
+        tournamentToSurface_dict = dict(tournamentToSurface_df.values)
+        self.matches['surface'] = self.matches.apply(
+            lambda row: tournamentToSurface_dict[row['tourney_name']] if row['surface'] is np.NAN else row['surface'], axis=1)
+
+        numOfNan = self.matches[self.matches['surface'].isnull()].shape[0]
+        print("Sanity checking surface after populating by same tourney: " + str(numOfNan))
         self.matches.dropna(subset=['surface'], inplace=True)
 
     def getSurfaceDict(self):
@@ -92,8 +126,19 @@ class DataProcessing:
     def checkTourneyLevel(self):
         """Sanity checking tourney_level"""
         numOfNan = self.matches[self.matches['tourney_level'].isnull()].shape[0]
+
+        if self.onlyGrandSlams:
+            self.matches.drop(self.matches[self.matches['tourney_level'] != 'G'].index, inplace=True)
+
         print("Sanity checking tourney_level: " + str(numOfNan))
         self.matches.dropna(subset=['tourney_level'], inplace=True)
+
+    def convertTourneyDateFormat(self):
+        """Create format"""
+        # self.matches['tourney_date'] = pd.to_datetime(self.matches.tourney_date, format='%Y%m%d')
+        # pd.to_datetime(self.matches.tourney_date, format='%Y%m%d')
+        self.matches['tourney_date'] = self.matches['tourney_date'].astype(str)
+        self.matches['tourney_date'] = self.matches['tourney_date'].apply(lambda x: datetime.strptime(re.search(r'\d{4}\d{2}\d{2}', x).group(), '%Y%m%d').strftime("%Y%m%d"))
 
     def getTourneyLevelDict(self):
         """Get tourney_level"""
@@ -113,7 +158,8 @@ class DataProcessing:
 
     def checkPlayerSeed(self):
         """Sanity checking winner_seed and loser_seed"""
-        self.matches[["winner_seed", "loser_seed"]] = self.matches[["winner_seed", "loser_seed"]].apply(pd.to_numeric, errors='coerce')
+        self.matches[["winner_seed", "loser_seed"]] = self.matches[["winner_seed", "loser_seed"]].apply(pd.to_numeric,
+                                                                                                        errors='coerce')
         numOfNan = self.matches[self.matches['winner_seed'].isnull() | self.matches['loser_seed'].isnull()].shape[0]
         print("Sanity checking winner_seed and loser_seed: " + str(numOfNan))
 
@@ -201,6 +247,7 @@ class DataProcessing:
     def checkPlayerRankPoints(self):
         """Sanity checking winner_rank_points and loser_rank_points"""
         numOfNan = self.matches[self.matches['winner_rank_points'].isnull() | self.matches['loser_rank_points'].isnull()].shape[0]
+        self.matches[self.matches['winner_rank_points'].isnull() | self.matches['loser_rank_points'].isnull()].shape[0]
         print("Sanity checking winner_rank_points and loser_rank_points: " + str(numOfNan))
 
         """Fill NaN players rank points with 0"""
@@ -209,7 +256,7 @@ class DataProcessing:
 
     def checkScore(self):
         """Sanity checking score"""
-        #self.matches['score'].apply(lambda x: x.lower())
+        # self.matches['score'].apply(lambda x: x.lower())
         numOfNan = self.matches[self.matches['score'].isnull() | self.matches['score'] == "w/o"].shape[0]
         print("Sanity checking score: " + str(numOfNan))
         self.matches.dropna(subset=['score'], inplace=True)
@@ -221,7 +268,8 @@ class DataProcessing:
         print("Sanity checking best_of: " + str(numOfNan))
 
         """Fill Nan best_of with 5 for Grand slams and with 3 for others"""
-        self.matches['best_of'] = np.where((self.matches['tourney_level'] == 'G') & (self.matches['best_of'].isnull()), 5, self.matches['best_of'])
+        self.matches['best_of'] = np.where((self.matches['tourney_level'] == 'G') & (self.matches['best_of'].isnull()),
+                                           5, self.matches['best_of'])
         self.matches['best_of'] = np.where(self.matches['best_of'].isnull(), 3, self.matches['best_of'])
 
     def getRoundsDict(self):
@@ -238,7 +286,7 @@ class DataProcessing:
         numOfNan = self.matches[self.matches['minutes'].isnull()].shape[0]
         print("Sanity checking minutes: " + str(numOfNan))
         self.matches.dropna(subset=['minutes'], inplace=True)
-        #think about filling nan values with avg
+        # think about filling nan values with avg
 
     def checkMatchStatistic(self):
         """Sanity checking match statistic"""
@@ -272,28 +320,30 @@ class DataProcessing:
 
     def getAllMatches(self):
         atp_matches = self.readATPMatches()
-        qa_matches = self.readChall_QATPMatches()
-        f_matches = self.readFMatches()
-        allMatches = pd.concat([atp_matches, qa_matches, f_matches])
-        return allMatches
+        if self.includeChallengers:
+            qa_matches = self.readChall_QATPMatches()
+            return pd.concat([atp_matches, qa_matches])
+        else:
+            return atp_matches
 
     def getCleanData(self):
         print("Number of all matches: " + str(self.matches.shape[0]))
         self.checkTourneyId()
         self.checkTourneyName()
-        self.checkSurface()
-        self.checkDrawSize()
-        self.checkTourneyLevel()
         self.dropDavisCup()
+        self.checkSurface()
+        self.convertTourneyDateFormat()
+        # self.checkDrawSize()
+        self.checkTourneyLevel()
         self.checkPlayerId()
-        self.checkPlayerSeed()
-        self.checkPlayersHand()
+        # self.checkPlayerSeed()
+        # self.checkPlayersHand()
         self.checkPlayerHeight()
         self.checkPlayerAge()
         self.checkPlayerRank()
         self.checkPlayerRankPoints()
-        self.checkScore()
-        self.checkBestOf()
+        # self.checkScore()
+        # self.checkBestOf()
         # self.checkMinutes()
         self.checkMatchStatistic()
         print("Number of matches after cleaning: " + str(self.matches.shape[0]))
@@ -301,17 +351,40 @@ class DataProcessing:
     def getMatches(self):
         return self.matches
 
+    def dropColumns(self):
+        cols_to_drop = [
+            'draw_size',
+            # 'match_num',
+            'winner_seed',
+            'winner_entry',
+            'winner_hand',
+            # 'winner_ht',
+            'winner_ioc',
+            # 'winner_age',
+            'loser_seed',
+            'loser_entry',
+            'loser_hand',
+            # 'loser_ht',
+            'loser_ioc',
+            # 'loser_age',
+            'best_of',
+            'round',
+            'minutes'
+        ]
+
+        self.matches = self.matches.drop(cols_to_drop, axis=1)
+        return self.matches
+
     def writeMatches(self):
         self.matches.to_csv("atp_matches_all.csv", index=False, encoding="utf-8-sig", header=True)
 
 
-data_processing = DataProcessing(absolute_path_to_data)
-data_processing.getCleanData()
-data_processing.writeMatches()
-data_processing.getDrawSizeDict()
-data_processing.getPlayersEntryDict()
-data_processing.getRoundsDict()
-data_processing.getSurfaceDict()
-data_processing.getTourneyLevelDict()
-
-
+# data_processing = DataProcessing(absolute_path_to_data)
+# data_processing.getCleanData()
+# data_processing.dropColumns()
+# data_processing.writeMatches()
+# data_processing.getDrawSizeDict()
+# data_processing.getPlayersEntryDict()
+# data_processing.getRoundsDict()
+# data_processing.getSurfaceDict()
+# data_processing.getTourneyLevelDict()

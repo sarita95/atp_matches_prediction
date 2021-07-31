@@ -1,0 +1,11 @@
+<RCC>
+  <qresource prefix="tennis">
+    <file>featureImportance.png</file>
+    <file>warning.jpg</file>
+    <file>machine-learning-results.jpg</file>
+    <file>machine-learning-algorithm.jpg</file>
+    <file>feature-engineering.jpg</file>
+    <file>1_WSaVCrl8q_68istViASidQ.jpeg</file>
+    <file>data-processing.jpg</file>
+  </qresource>
+</RCC>
