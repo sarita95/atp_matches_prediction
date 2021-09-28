@@ -176,8 +176,8 @@ class DataProcessingDialog(object):
         elif selectedDataSet != 0:
             tourneyName = self.comboBox.currentText()
 
-        if yearFrom < 2000 or yearFrom > 2021 or yearTo < 2000 or yearTo > 2021 or yearFrom > yearTo:
-            message = "Years are not in the correct format.\nPlease enter something between 2000 and 2021 and try again."
+        if yearFrom < 2000 or yearFrom > 2021 or yearTo < 2000 or yearTo > 2021 or yearFrom > yearTo or yearFrom == yearTo:
+            message = "Years are not in the correct format.\nPlease enter something between 2000 and 2021 and try again.\nAlso, yearFrom can not be same as yearTo as well as higher."
             self.openWarningDialog(message)
         else:
             data_processing = DataProcessing(absolute_path_to_data, yearFrom, yearTo, onlyGrandSlams, tourneyName,

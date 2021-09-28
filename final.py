@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 import os
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-absolute_path_to_data = "C:\\Users\\Sara\\Desktop\\master\\atp_matches_prediction\\pre_processing\\atp_matches_all.csv"
+absolute_path_to_data = "C:\\Users\\Sara\\Desktop\\master\\atp_matches_prediction\\atp_matches_all.csv"
 
 
 def data_cleaning(df):
@@ -99,12 +99,12 @@ def data_cleaning(df):
     df = df.assign(loser_2ndWonPer=pd.Series(df['loser_2ndWon'] / df['loser_2ndIn']))
     df['winner_2ndWonPer'].fillna(0, inplace=True)
     df['loser_2ndWonPer'].fillna(0, inplace=True)
-    df = df.assign(winner_1stRetWonPer=pd.Series((df['winner_1stIn'] - df['winner_1stWon']) / df['winner_1stIn']))
-    df = df.assign(loser_1stRetWonPer=pd.Series((df['loser_1stIn'] - df['loser_1stWon']) / df['loser_1stIn']))
+    df = df.assign(loser_1stRetWonPer=pd.Series((df['winner_1stIn'] - df['winner_1stWon']) / df['winner_1stIn']))
+    df = df.assign(winner_1stRetWonPer=pd.Series((df['loser_1stIn'] - df['loser_1stWon']) / df['loser_1stIn']))
     df['winner_1stRetWonPer'].fillna(0, inplace=True)
     df['loser_1stRetWonPer'].fillna(0, inplace=True)
-    df = df.assign(winner_2ndRetWonPer=pd.Series((df['winner_2ndIn'] - df['winner_2ndWon']) / df['winner_2ndIn']))
-    df = df.assign(loser_2ndRetWonPer=pd.Series((df['loser_2ndIn'] - df['loser_2ndWon']) / df['loser_2ndIn']))
+    df = df.assign(loser_2ndRetWonPer=pd.Series((df['winner_2ndIn'] - df['winner_2ndWon']) / df['winner_2ndIn']))
+    df = df.assign(winner_2ndRetWonPer=pd.Series((df['loser_2ndIn'] - df['loser_2ndWon']) / df['loser_2ndIn']))
     df['winner_2ndRetWonPer'].fillna(0, inplace=True)
     df['loser_2ndRetWonPer'].fillna(0, inplace=True)
     # Imputing returns data so we can construct features
@@ -199,6 +199,7 @@ def calculateWinPct(x, y):
 
 
 def calculateFeatureImportance(allFeatures, features, algorithm):
+    features = np.absolute(features)
     feat_imp = sorted(list(zip(allFeatures, features)), key=lambda x: -x[1])
 
     feat_imp_df = pd.DataFrame({'feature': [x[0] for x in feat_imp],
@@ -255,8 +256,8 @@ def xgbClassifier(X_train, X_test, Y_train, Y_test, allFeatures):
     y_pred = model.predict(X_test)
 
     calculateFeatureImportance(allFeatures, model.feature_importances_, 'XGBoost Classifier')
-
-    return accuracy_score(Y_test, y_pred)
+    score = accuracy_score(Y_test, y_pred)
+    return score
 
 
 def linearDiscriminantAnalysis(X_train, X_test, Y_train, Y_test, allFeatures):
@@ -428,9 +429,9 @@ class FeaturesEngineering:
                 self.matches[2*index + 1][feature_position] = loser_old_elo - winner_old_elo
                 feature_position += 1
 
+            total_winner, winner_recent_form, total_loser, loser_recent_form = self.calculatePlayersRecentFrom( winner_id, loser_id, tourney_date, match_num)
             if 'per_of_matches_won_12_months' in self.featureColls:
                 # per of match won over last 12 months
-                total_winner, winner_recent_form, total_loser, loser_recent_form = self.calculatePlayersRecentFrom(winner_id, loser_id, tourney_date, match_num)
                 self.matches[2 * index][feature_position] = winner_recent_form - loser_recent_form
                 self.matches[2 * index + 1][feature_position] = loser_recent_form - winner_recent_form
                 feature_position += 1
@@ -644,8 +645,15 @@ class FeaturesEngineering:
 
         # Scaled feature
         x_after_min_max_scaler = min_max_scaler.fit_transform(x)
-        X_train, X_test, Y_train, Y_test = train_test_split(x_after_min_max_scaler, y, test_size=test_size, random_state=42)
         allFeatures = self.rollingCols + self.featureColls
+        X_train, X_test, Y_train, Y_test = train_test_split(x_after_min_max_scaler, y, test_size=test_size/100, random_state=42)
+        # trainSet = pd.DataFrame(data=X_train, index=None, columns=allFeatures)
+        # trainSet['result'] = Y_train
+        # trainSet = pd.DataFrame(data=X_train, index=None, columns=allFeatures)
+        # trainSet['result'] = Y_train
+        # trainSet.to_csv("trainSet.csv", index=False, encoding="utf-8-sig", header=True)
+        # testSet.to_csv("testSet.csv", index=False, encoding="utf-8-sig", header=True)
+
         score = 0
         if algorithm == 0:
             score = logisticRegression(X_train, X_test, Y_train, Y_test, allFeatures)

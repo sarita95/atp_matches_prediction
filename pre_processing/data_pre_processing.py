@@ -126,19 +126,20 @@ class DataProcessing:
     def checkTourneyLevel(self):
         """Sanity checking tourney_level"""
         numOfNan = self.matches[self.matches['tourney_level'].isnull()].shape[0]
+        self.matches.dropna(subset=['tourney_level'], inplace=True)
 
         if self.onlyGrandSlams:
-            self.matches.drop(self.matches[self.matches['tourney_level'] != 'G'].index, inplace=True)
+            self.matches = self.matches[self.matches["tourney_level"] == 'G']
+            #self.matches.drop(self.matches[self.matches['tourney_level'] != 'G'].index, inplace=True)
 
         print("Sanity checking tourney_level: " + str(numOfNan))
-        self.matches.dropna(subset=['tourney_level'], inplace=True)
+
 
     def convertTourneyDateFormat(self):
         """Create format"""
-        # self.matches['tourney_date'] = pd.to_datetime(self.matches.tourney_date, format='%Y%m%d')
-        # pd.to_datetime(self.matches.tourney_date, format='%Y%m%d')
         self.matches['tourney_date'] = self.matches['tourney_date'].astype(str)
-        self.matches['tourney_date'] = self.matches['tourney_date'].apply(lambda x: datetime.strptime(re.search(r'\d{4}\d{2}\d{2}', x).group(), '%Y%m%d').strftime("%Y%m%d"))
+        self.matches['tourney_date'] = self.matches['tourney_date'].apply(
+            lambda x: datetime.strptime(re.search(r'\d{4}\d{2}\d{2}', x).group(), '%Y%m%d').strftime("%Y%m%d"))
 
     def getTourneyLevelDict(self):
         """Get tourney_level"""

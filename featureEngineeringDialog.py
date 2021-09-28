@@ -390,7 +390,7 @@ class FeatureEngineeringDialog(object):
             score = featureEngineering.runAlgorithm(selectedAlgorithm, testSet)
             s = subprocess.getstatusoutput(f'pyrcc5 -o tennis_image.py tennis_image.qrc')
             print(s)
-            self.openResultDialog(str("{:.2f}".format(score* 100)) + '%')
+            self.openResultDialog(str("{:.2f}".format(score * 100)) + '%')
 
     def openResultDialog(self, score):
         Dialog = QtWidgets.QDialog()
